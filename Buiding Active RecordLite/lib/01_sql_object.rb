@@ -5,7 +5,6 @@ require 'active_support/inflector'
 
 class SQLObject
   def self.columns
-    #table = self.table_name
     if @columns
       @columns
     else
@@ -13,7 +12,7 @@ class SQLObject
       SELECT
         *
       FROM
-        "#{self.table_name}"
+        #{self.table_name}
       SQL
 
       @columns = dbcolumns.first.map do |col|
@@ -44,15 +43,39 @@ class SQLObject
   end
 
   def self.all
-    # ...
+    results = DBConnection.execute(<<-SQL)
+    SELECT
+      *
+    FROM
+     #{self.table_name}
+    SQL
+
+    self.parse_all(results)
   end
 
   def self.parse_all(results)
-    # ...
+    all_objects = []
+    results.each do |params|
+      all_objects << self.new(params)
+    end
+    all_objects
   end
 
   def self.find(id)
-    # ...
+   
+    result = DBConnection.execute(<<-SQL, id)
+    SELECT
+      *
+    FROM
+     #{self.table_name}
+    WHERE
+      #{self.table_name}.id = ?
+    LIMIT
+      1
+    SQL
+     
+    return nil if result.empty?
+    self.parse_all(result).first 
   end
 
   def initialize(params = {})
@@ -65,7 +88,6 @@ class SQLObject
         raise "unknown attribute '#{k}'"
       end
     end
-
   end
 
   def attributes
@@ -73,11 +95,22 @@ class SQLObject
   end
 
   def attribute_values
-    # ...
+    atr_vals = self.class.columns
+      atr_vals.map! do |val|
+          self.send(val)
+      end
   end
 
   def insert
-    # ...
+    col = self.class.columns
+    values = self.attribute_values
+    result = DBConnection.execute(<<-SQL, *values)
+    INSERT INTO
+     #{self.table_name} ()
+    VALUES
+      ?
+    SQL
+    result 
   end
 
   def update
